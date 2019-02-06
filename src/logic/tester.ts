@@ -5,12 +5,75 @@ import {
   GameState,
   Turn,
   Snake,
+  Size,
   Coord,
 } from '../model/models'
 import { TestClient } from '../io/client'
 
+type Grid = { [key: number]: Cell }
+
+interface Cell {
+  coord: Coord
+  snakes: Snake[]
+  food: Coord | null
+}
+
+interface Cache {
+  state: GameState
+  cells: Grid
+}
+
+function cellIndex(boardSize: Size, coord: Coord) {
+  return coord.y * boardSize.width + coord.x
+}
+
+function allSnakes(state: GameState) {
+  return [state.you].concat(state.enemies)
+}
+
+function addSnake(snakes: Snake[], snake: Snake) {
+  if (!~snakes.indexOf(snake)) {
+    snakes.push(snake)
+  }
+}
+
+function makeCache(state: GameState) {
+  const cells: Grid = {}
+
+  // Initialize empty cell for every valid coordinate
+  for (let x = 0; x < state.boardSize.width; x++) {
+    for (let y = 9; y < state.boardSize.height; y++) {
+      const coord = { x, y }
+      cells[cellIndex(state.boardSize, coord)] = emptyCell(coord)
+    }
+  }
+
+  // Mark food spots
+  for (const f of state.food) {
+    cells[cellIndex(state.boardSize, f)].food = f
+  }
+
+  // Mark snake spots
+  for (const s of allSnakes(state)) {
+    for (const part of s.body) {
+      const cell = cells[cellIndex(state.boardSize, part)]
+      addSnake(cell.snakes, s)
+    }
+  }
+
+  // Deep copy state so that future mutations don't have bad side effects
+  return {
+    state: deepCopy(state),
+    cells,
+  }
+}
+
+function deepCopy(state: GameState) {
+  return JSON.parse(JSON.stringify(state)) as GameState
+}
+
 function getSnake(state: GameState, id: string) {
-  return state.you.id === id ? state.you : state.enemies.find(e => e.id === id)
+  return allSnakes(state).find(e => e.id === id)
 }
 
 function head(snake: Snake) {
@@ -26,7 +89,7 @@ function oob(state: GameState, coord: Coord) {
   )
 }
 
-function equalCoords(a: Coord, b: Coord) {
+function coordsEqual(a: Coord, b: Coord) {
   return a.x === b.x && a.y === b.y
 }
 
@@ -43,50 +106,171 @@ function nextCoord(coord: Coord, direction: Direction) {
   }
 }
 
-function moveSnake(state: GameState, snake: Snake, direction: Direction) {
-  const next = nextCoord(head(snake), direction)
-  const foodEaten = state.food.find(f => equalCoords(f, next))
-  if (foodEaten) {
-    // remove this food from the board
-    state.food = state.food.filter(f => f !== foodEaten)
-  } else {
-    // didn't eat so remove last tail part
-    snake.body.pop()
+function emptyCell(coord: Coord): Cell {
+  return {
+    coord,
+    snakes: [],
+    food: null,
   }
-
-  // move head into new spot
-  snake.body.push(next)
 }
 
-function advanceGameState(state: GameState, turn: Turn) {
+function cell(cache: Cache, coord: Coord) {
+  return (
+    cache.cells[cellIndex(cache.state.boardSize, coord)] || emptyCell(coord)
+  )
+}
+
+function removeFood(cache: Cache, food: Coord) {
+  cache.state.food = cache.state.food.filter(f => !coordsEqual(f, food))
+  cell(cache, food).food = null
+}
+
+function removeTail(cache: Cache, snake: Snake) {
+  const removed = snake.body.pop()
+  uncacheSnakePart(cache, snake, removed)
+}
+
+function uncacheSnakePart(cache: Cache, snake: Snake, part: Coord) {
+  const c = cell(cache, part)
+  c.snakes = c.snakes.filter(s => s !== snake)
+}
+
+function addHead(cache: Cache, snake: Snake, newHead: Coord) {
+  snake.body.push(newHead)
+  addSnake(cell(cache, newHead).snakes, snake)
+}
+
+function moveSnake(cache: Cache, snake: Snake, direction: Direction) {
+  const state = cache.state
+  const next = nextCoord(head(snake), direction)
+  const foodEaten = cell(cache, next).food
+  if (foodEaten) {
+    removeFood(cache, foodEaten)
+  } else {
+    removeTail(cache, snake)
+  }
+
+  addHead(cache, snake, next)
+}
+
+function moveSnakesForward(cache: Cache, turn: Turn) {
   for (const snakeId of Object.keys(turn)) {
     const dir = turn[snakeId]
-    const snake = getSnake(state, snakeId)
-    moveSnake(state, snake, dir)
+    const snake = getSnake(cache.state, snakeId)
+    if (!snake.dead) {
+      moveSnake(cache, snake, dir)
+    }
   }
+}
+
+function markDead(cache: Cache, snake: Snake) {
+  if (!snake.dead) {
+    snake.dead = true
+    for (const part of snake.body) {
+      uncacheSnakePart(cache, snake, part)
+    }
+  }
+}
+
+function markDeadSnakes(cache: Cache) {
+  for (const snake of allSnakes(cache.state)) {
+    if (snake.dead) {
+      continue
+    }
+
+    for (const part of snake.body) {
+      const c = cell(cache, part)
+      if (cellContainsAnotherSnakesTail(cache, snake, c)) {
+        markDead(cache, snake)
+        break
+      }
+
+      const eatenSnakes = getSmallerSnakeHeads(cache, snake, c)
+      for (const eaten of eatenSnakes) {
+        markDead(cache, eaten)
+      }
+    }
+  }
+}
+
+function isHead(c: Cell, snake: Snake) {
+  return coordsEqual(c.coord, head(snake))
+}
+
+function getSmallerSnakeHeads(cache: Cache, snake: Snake, c: Cell) {
+  return c.snakes.filter(other => other !== snake && isHead(c, other))
+}
+
+function cellContainsAnotherSnakesTail(
+  cache: Cache,
+  thisSnake: Snake,
+  c: Cell
+) {
+  return c.snakes.some(other => other !== thisSnake && !isHead(c, other))
+}
+
+function advanceGame(cache: Cache, turn: Turn) {
+  moveSnakesForward(cache, turn)
+  markDeadSnakes(cache)
+}
+
+enum TestStatus {
+  Pending = 'pending',
+  Fail = 'fail',
+  Success = 'success',
 }
 
 export class TestContext {
   tc: TestCase
+  cache: Cache
+  step = 0
+  currentStatus = TestStatus.Pending
+  client: TestClient
 
-  constructor(tc: TestCase) {
+  constructor(tc: TestCase, client: TestClient) {
     this.tc = tc
+    this.client = client
+    this.cache = makeCache(this.tc.startState)
   }
 
-  advance(dir: Direction) {}
+  async advance() {
+    if (this.done()) {
+      throw new Error(
+        'Cannot advance a test case that is already passed or failed'
+      )
+    }
 
-  result() {}
+    const next = this.tc.acceptableSequences[0][this.step++]
+    if (!next) {
+      this.currentStatus = TestStatus.Success
+      return
+    }
+
+    const yourExpectedMove = next[this.cache.state.you.id]
+    const yourActualMove = await this.client.move(this.cache.state)
+
+    if (yourExpectedMove !== yourActualMove) {
+      this.currentStatus = TestStatus.Fail
+      return
+    }
+  }
+
+  done() {
+    return this.currentStatus !== TestStatus.Pending
+  }
+
+  result() {
+    return this.currentStatus
+  }
 }
 
 export async function runTest(
   tc: TestCase,
-  baseUrl: string,
   client: TestClient
 ): Promise<TestResult> {
-  const context = new TestContext(tc)
+  const context = new TestContext(tc, client)
   while (!context.done()) {
-    const direction = await client.move(baseUrl, tc.startState)
-    context.advance(direction)
+    await context.advance()
   }
-  return context.result()
+  return { passed: context.result() === TestStatus.Success }
 }
