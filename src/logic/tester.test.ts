@@ -37,6 +37,52 @@ describe('runTest', () => {
       }
     )
   })
+
+  it('should fail with invalid moves', done => {
+    const client = new MockClient([Direction.Up, Direction.Left])
+    runTest(
+      {
+        key: 'asdf',
+        startState: fromAscii('___\n>0_'),
+        acceptableSequences: [
+          [{ '0': Direction.Up }, { '0': Direction.Right }],
+        ],
+      },
+      client
+    ).then(
+      res => {
+        expect(res.passed).toBe(false)
+        done()
+      },
+      err => {
+        throw err
+      }
+    )
+  })
+
+  it('should pass when matching one of multiple sequences', done => {
+    const client = new MockClient([Direction.Up, Direction.Left])
+    runTest(
+      {
+        key: 'asdf',
+        startState: fromAscii('___\n>0_'),
+        acceptableSequences: [
+          [{ '0': Direction.Up }, { '0': Direction.Right }],
+          [{ '0': Direction.Up }, { '0': Direction.Left }],
+        ],
+      },
+      client
+    ).then(
+      res => {
+        expect(res.passed).toBe(true)
+        done()
+      },
+      err => {
+        throw err
+      }
+    )
+  })
+
   it('should throw with empty test case', done => {
     const client = new MockClient([])
     const run = runTest(

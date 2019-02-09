@@ -7,6 +7,7 @@ import {
   Snake,
   Size,
   Coord,
+  Sequence,
 } from '../model/models'
 import { TestClient } from '../io/client'
 
@@ -226,11 +227,13 @@ export class TestContext {
   step = 0
   currentStatus = TestStatus.Pending
   client: TestClient
+  viableSequences: Sequence[]
 
   constructor(tc: TestCase, client: TestClient) {
     this.tc = tc
     this.client = client
     this.cache = makeCache(this.tc.startState)
+    this.viableSequences = this.tc.acceptableSequences
   }
 
   async advance() {
@@ -240,17 +243,21 @@ export class TestContext {
       )
     }
 
-    const next = this.tc.acceptableSequences[0][this.step++]
-    if (!next) {
-      this.currentStatus = TestStatus.Success
+    const yourActualMove = await this.client.move(this.cache.state)
+    const turn = this.step++
+    this.viableSequences = this.viableSequences.filter(
+      seq => seq[turn][this.cache.state.you.id] === yourActualMove
+    )
+
+    if (this.viableSequences.length === 0) {
+      // There are no matching acceptable sequences, so the test fails!
+      this.currentStatus = TestStatus.Fail
       return
     }
 
-    const yourExpectedMove = next[this.cache.state.you.id]
-    const yourActualMove = await this.client.move(this.cache.state)
-
-    if (yourExpectedMove !== yourActualMove) {
-      this.currentStatus = TestStatus.Fail
+    if (this.viableSequences.some(sv => sv.length === this.step)) {
+      // One of the acceptable sequences has been satisfied, so the test passes!
+      this.currentStatus = TestStatus.Success
       return
     }
   }
