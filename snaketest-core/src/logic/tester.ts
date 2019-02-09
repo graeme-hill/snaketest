@@ -9,6 +9,7 @@ import {
   Coord,
   Sequence,
 } from '../model/models'
+import { deepCopy, allSnakes } from './util'
 import { TestClient } from '../io/client'
 
 type Grid = { [key: number]: Cell }
@@ -26,10 +27,6 @@ interface Cache {
 
 function cellIndex(boardSize: Size, coord: Coord) {
   return coord.y * boardSize.width + coord.x
-}
-
-function allSnakes(state: GameState) {
-  return [state.you].concat(state.enemies)
 }
 
 function addSnake(snakes: Snake[], snake: Snake) {
@@ -67,10 +64,6 @@ function makeCache(state: GameState) {
     state: deepCopy(state),
     cells,
   }
-}
-
-function deepCopy(state: GameState) {
-  return JSON.parse(JSON.stringify(state)) as GameState
 }
 
 function getSnake(state: GameState, id: string) {
