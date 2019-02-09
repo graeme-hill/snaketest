@@ -42,7 +42,7 @@ function makeCache(state: GameState) {
 
   // Initialize empty cell for every valid coordinate
   for (let x = 0; x < state.boardSize.width; x++) {
-    for (let y = 9; y < state.boardSize.height; y++) {
+    for (let y = 0; y < state.boardSize.height; y++) {
       const coord = { x, y }
       cells[cellIndex(state.boardSize, coord)] = emptyCell(coord)
     }
@@ -268,6 +268,9 @@ export async function runTest(
   tc: TestCase,
   client: TestClient
 ): Promise<TestResult> {
+  if (!tc.acceptableSequences.some(s => s.length > 0)) {
+    throw new Error('Must have at least one sequence of non-zero length')
+  }
   const context = new TestContext(tc, client)
   while (!context.done()) {
     await context.advance()
