@@ -162,16 +162,15 @@ _ _ 1 <`),
     }
 
     const myVariations = variations(normal0)
-    expect(myVariations).toEqual([
-      normal0,
-      normal90,
-      normal180,
-      normal270,
-      mirror0,
-      mirror90,
-      mirror180,
-      mirror270,
-    ])
+    expect(myVariations).toHaveLength(8)
+    expect(myVariations[0]).toEqual(normal0)
+    expect(myVariations[1]).toEqual(normal90)
+    expect(myVariations[2]).toEqual(normal180)
+    expect(myVariations[3]).toEqual(normal270)
+    expect(myVariations[4]).toEqual(mirror0)
+    expect(myVariations[5]).toEqual(mirror90)
+    expect(myVariations[6]).toEqual(mirror180)
+    expect(myVariations[7]).toEqual(mirror270)
   })
 })
 

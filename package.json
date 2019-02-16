@@ -4,7 +4,8 @@
   "description": "",
   "main": "main.ts",
   "scripts": {
-    "test": "jest"
+    "test": "jest",
+    "start": "rm -rf ./dist && mkdir -p ./dist && cp -R ./src/ui/public/* ./dist && tsc -w"
   },
   "repository": {
     "type": "git",
@@ -18,8 +19,14 @@
   "homepage": "https://github.com/graeme-hill/snaketest#readme",
   "devDependencies": {
     "@types/jest": "^24.0.0",
+    "@types/react": "16.8.3",
+    "@types/react-dom": "^16.8.1",
     "jest": "^24.1.0",
     "ts-jest": "^23.10.5",
     "typescript": "^3.3.1"
+  },
+  "dependencies": {
+    "react": "16.8.2",
+    "react-dom": "16.8.2"
   }
 }

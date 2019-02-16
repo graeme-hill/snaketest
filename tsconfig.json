@@ -1,14 +1,17 @@
 {
   "compilerOptions": {
-    "module": "es6",
+    "module": "amd",
+    "moduleResolution": "Node",
     "target": "ES6",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
     "sourceMap": true,
     "lib": ["es2016", "dom"],
-    "outDir": "dist"
+    "outDir": "dist",
+    "outFile": "dist/app.js",
+    "jsx": "react"
   },
-  "include": ["src/**/*.ts"],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["node_modules", "**/*.test.ts"]
 }

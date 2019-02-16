@@ -1,0 +1,19 @@
+<html>
+<head>
+  <title>Test your snakes</title>
+</head>
+<body>
+  <script src="require.js"></script>
+  <script src="app.js"></script>
+  <script>
+    requirejs.config({
+      paths: {
+        'react': 'https://unpkg.com/react@16/umd/react.production.min',
+        'react-dom': 'https://unpkg.com/react-dom@16/umd/react-dom.production.min'
+      }
+    })
+    require(['ui/main'])
+  </script>
+  <div id="root">root</div>
+</body>
+</html>

@@ -111,7 +111,7 @@ function mirror(tc: TestCase) {
 
   const translateCoord = (coord: Coord, size: Size) => ({
     x: size.width - coord.x - 1,
-    y: size.height - coord.y - 1,
+    y: coord.y,
   })
 
   const translateSize = (size: Size) => ({ ...size })
